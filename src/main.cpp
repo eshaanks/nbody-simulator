@@ -1,74 +1,73 @@
-#include "backend.h"
 #include "types.h"
+#include "physics.h"
+#include "backend_dispatch.h"
 #include <iostream>
 #include <chrono>
 #include <cstring>
 
 // ===========================================================
-// main.cpp — Entry point for N-Body Simulation (CPU baseline)
+// main.cpp — N-Body Simulation Entry Point (Refactored)
 // ===========================================================
 
-void print_usage() {
-    std::cout << "Usage: ./nbody [--n N] [--dt DT] [--steps STEPS]\n";
-}
+int main(int argc, char** argv) {
+    // -------------------------------
+    // Parse CLI arguments
+    // -------------------------------
+    int N = 500;
+    float dt = 0.001f;
+    int steps = 1000;
+    std::string backend_name = "cpu";
 
-int main(int argc, char **argv) {
-    SimParams params;
-
-    // -------------------------------------------------------
-    // Parse simple CLI arguments
-    // -------------------------------------------------------
     for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--n") == 0 && i + 1 < argc) {
-            params.N = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--dt") == 0 && i + 1 < argc) {
-            params.dt = std::stof(argv[++i]);
-        } else if (strcmp(argv[i], "--steps") == 0 && i + 1 < argc) {
-            params.total_time = std::stof(argv[++i]);
-        } else {
-            print_usage();
-            return 1;
-        }
+        if (strcmp(argv[i], "--n") == 0 && i + 1 < argc)
+            N = std::stoi(argv[++i]);
+        else if (strcmp(argv[i], "--dt") == 0 && i + 1 < argc)
+            dt = std::stof(argv[++i]);
+        else if (strcmp(argv[i], "--steps") == 0 && i + 1 < argc)
+            steps = std::stoi(argv[++i]);
+        else if (strcmp(argv[i], "--backend") == 0 && i + 1 < argc)
+            backend_name = argv[++i];
     }
 
-    std::cout << "=== N-Body Simulation (CPU Baseline) ===\n";
-    std::cout << "Particles : " << params.N << "\n";
-    std::cout << "Time step : " << params.dt << "\n";
-    std::cout << "Steps     : " << params.total_time << "\n\n";
+    // -------------------------------
+    // Configure simulation parameters
+    // -------------------------------
+    SimParams params;
+    params.N = N;
+    params.dt = dt;
 
+    // -------------------------------
+    // Select backend
+    // -------------------------------
+    if (!select_backend(backend_name)) {
+        std::cerr << "Warning: Unknown backend, defaulting to CPU.\n";
+    }
+    const auto& api = get_active_backend();
+
+    // -------------------------------
+    // Initialize simulation
+    // -------------------------------
     BackendContext ctx;
+    api.init(ctx, params);
 
-    // -------------------------------------------------------
-    // Initialize backend
-    // -------------------------------------------------------
-    if (!init_backend(ctx, params)) {
-        std::cerr << "Failed to initialize backend.\n";
-        return 1;
-    }
-
-    // -------------------------------------------------------
-    // Simulation loop
-    // -------------------------------------------------------
-    const int total_steps = static_cast<int>(params.total_time);
     auto start = std::chrono::high_resolution_clock::now();
 
-    for (int step = 0; step < total_steps; ++step) {
-        step_backend(ctx);
-
-        if (step % params.output_interval == 0) {
-            float E = compute_backend_energy(ctx);
-            std::cout << "Step " << step
-                      << " | Energy = " << E << "\n";
+    // -------------------------------
+    // Simulation loop
+    // -------------------------------
+    for (int step = 0; step < steps; ++step) {
+        api.step(ctx);
+        if (step % 100 == 0) {
+            float E = api.energy(ctx);
+            std::cout << "Step " << step << " | Energy = " << E << "\n";
         }
     }
 
     auto end = std::chrono::high_resolution_clock::now();
-    double elapsed =
-        std::chrono::duration<double>(end - start).count();
+    std::chrono::duration<double> duration = end - start;
 
-    std::cout << "\nSimulation completed in "
-              << elapsed << " seconds.\n";
+    std::cout << "\nSimulation completed in " << duration.count() << " seconds.\n";
 
-    shutdown_backend(ctx);
+    api.shutdown(ctx);
     return 0;
 }
