@@ -1,0 +1,29 @@
+# ========================
+# Build Artifacts / Outputs
+# ========================
+nbody
+*.exe
+*.out
+*.o
+*.obj
+build/
+
+# ========================
+# macOS System Files
+# ========================
+.DS_Store
+
+# ========================
+# IDE / Editor Settings
+# ========================
+.vscode/
+.idea/
+*.swp
+
+# ========================
+# CMake / Make
+# ========================
+CMakeFiles/
+CMakeCache.txt
+Makefile
+
