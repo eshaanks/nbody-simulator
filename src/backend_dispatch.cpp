@@ -5,6 +5,7 @@
 
 // CPU backend headers
 #include "../backends/cpu/cpu_backend.h"
+#include "../backends/metal/metal_backend.h"
 
 // (Later) Metal, CUDA headers will go here
 
@@ -34,8 +35,12 @@ static BackendAPI make_cpu_backend_api() {
 // (Placeholder) Metal backend registration
 // -----------------------------------------------------------
 static BackendAPI make_metal_backend_api() {
-    std::cerr << "[Metal Backend] Not implemented yet.\n";
-    return make_cpu_backend_api(); // fallback to CPU for now
+    BackendAPI api;
+    api.init = metal_init_backend;
+    api.step = metal_step_backend;
+    api.energy = metal_compute_backend_energy;
+    api.shutdown = metal_shutdown_backend;
+    return api;
 }
 
 // -----------------------------------------------------------
@@ -45,6 +50,9 @@ static BackendAPI make_cuda_backend_api() {
     std::cerr << "[CUDA Backend] Not implemented yet.\n";
     return make_cpu_backend_api(); // fallback to CPU for now
 }
+
+// Global variable that holds the active backend’s function table
+static BackendAPI g_backend;
 
 // -----------------------------------------------------------
 // Select backend by name
